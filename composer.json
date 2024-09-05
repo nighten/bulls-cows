@@ -1,0 +1,15 @@
+{
+    "name": "nighten/bulls-cows",
+    "type": "project",
+    "license": "proprietary",
+    "description": "Bulls and cows game",
+    "autoload": {
+        "psr-4": {
+            "Nighten\\Bc\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "require": {
+        "symfony/console": "^7.0"
+    }
+}

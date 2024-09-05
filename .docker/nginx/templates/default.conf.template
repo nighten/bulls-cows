@@ -1,0 +1,101 @@
+upstream web-socket-xphp {
+	server jw-php-xdebug:${NGINX_WEBSOCKET_LISTENER_PORT};
+}
+
+server {
+    index index.php;
+    server_name bk.local;
+    listen *:8201;
+    root /var/www/html/public/;
+    client_max_body_size 256M;
+    charset utf-8;
+    charset_types *;
+    # Prod value = 60
+    fastcgi_read_timeout 120;
+    fastcgi_send_timeout 120;
+
+    location / {
+        try_files $uri /index.php$is_args$args;
+    }
+
+    location /web-socket.io/ {
+        proxy_http_version 1.1;
+
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Host $http_host;
+
+        proxy_set_header Sec-WebSocket-Extensions $http_sec_websocket_extensions;
+        proxy_set_header Sec-WebSocket-Key $http_sec_websocket_key;
+        proxy_set_header Sec-WebSocket-Protocol $http_sec_websocket_protocol;
+        proxy_set_header Sec-WebSocket-Version $http_sec_websocket_version;
+
+        proxy_pass "http://web-socket-xphp";
+    }
+
+    location ~ ^/index\.php(/|$) {
+        try_files $uri index.php =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass unix:/var/run/xdebug/php82-fpm-xdebug.sock;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }
+
+    location ~ \.php$ {
+        return 404;
+    }
+
+    error_log  /var/log/nginx/access-xd.log;
+    access_log /var/log/nginx/error-xd.log;
+}
+
+server {
+    index index.php;
+    server_name bk.local;
+    listen *:8202;
+    root /var/www/html-ssh/public/;
+    client_max_body_size 256M;
+    charset utf-8;
+    charset_types *;
+    # Prod value = 60
+    fastcgi_read_timeout 120;
+    fastcgi_send_timeout 120;
+
+    location / {
+        try_files $uri /index.php$is_args$args;
+    }
+
+    location /web-socket.io/ {
+        proxy_http_version 1.1;
+
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Host $http_host;
+
+        proxy_set_header Sec-WebSocket-Extensions $http_sec_websocket_extensions;
+        proxy_set_header Sec-WebSocket-Key $http_sec_websocket_key;
+        proxy_set_header Sec-WebSocket-Protocol $http_sec_websocket_protocol;
+        proxy_set_header Sec-WebSocket-Version $http_sec_websocket_version;
+
+        proxy_pass "http://web-socket-xphp";
+    }
+
+    location ~ ^/index\.php(/|$) {
+        try_files $uri index.php =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass unix:/var/run/xdebug/php82-fpm-xdebug.sock;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }
+
+    location ~ \.php$ {
+        return 404;
+    }
+
+    error_log  /var/log/nginx/access-xd.log;
+    access_log /var/log/nginx/error-xd.log;
+}

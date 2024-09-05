@@ -1,0 +1,58 @@
+services:
+  nginx:
+    image: nginx:latest
+    container_name: bk-nginx
+    networks:
+      - bk_network
+    depends_on:
+      - php-xdebug
+    ports:
+      - ${NGINX_XDEBUG_PORT}:8201
+      - ${NGINX_XDEBUG_PORT_WITH_SSH}:8202
+    volumes:
+      - .docker/nginx/templates:/etc/nginx/templates
+      - ./:/var/www/html:ro
+      - ./:/var/www/html-ssh:ro
+      - "phpsocket:/var/run"
+      - "socket:/var/run/xdebug"
+    environment:
+      NGINX_WEBSOCKET_LISTENER_PORT: ${NGINX_WEBSOCKET_LISTENER_PORT}
+
+  php-xdebug:
+    build:
+      context: .docker/php
+    container_name: bk-php-xdebug
+    ports:
+      - "10026:22"
+    networks:
+      - bk_network
+    volumes:
+      - ./:/var/www/html/:cached
+      - .docker/php/php.ini:/usr/local/etc/php/conf.d/docker-tracker.ini
+      - .docker/php/xdebug-on.ini:/usr/local/etc/php/conf.d/xdebug-on.ini
+      - .docker/php/zz-docker-xdebug.conf:/usr/local/etc/php-fpm.d/zz-docker.conf
+      - "socket:/var/run/xdebug"
+    environment:
+      XDEBUG_CONFIG: "client_host=host.docker.internal idekey=PHPSTORM"
+      PHP_IDE_CONFIG: "serverName=bk"
+
+#  mysql:
+#    image: mysql:8
+#    container_name: bk-mysql
+#    networks:
+#      - bk_network
+#    ports:
+#      - ${MYSQL_PORT}:3306
+#    environment:
+#      - MYSQL_DATABASE=${MYSQL_DATABASE}
+#      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+#    volumes:
+#      - ./var/db:/var/lib/mysql
+
+networks:
+  bk_network:
+    driver: bridge
+
+volumes:
+  phpsocket:
+  socket:
