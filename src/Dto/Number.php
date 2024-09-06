@@ -31,4 +31,16 @@ readonly class Number
     {
         return implode('', $this->number);
     }
+
+    public static function fromString(string $number): Number
+    {
+        /** @var array<int<0, 3>, int<0, 9>> $a */
+        $a = [
+            (int)$number[0],
+            (int)$number[1],
+            (int)$number[2],
+            (int)$number[3],
+        ];
+        return new self($a);
+    }
 }

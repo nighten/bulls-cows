@@ -7,6 +7,7 @@ namespace Nighten\Bc\Cli;
 use Exception;
 use Nighten\Bc\Exception\GameException;
 use Nighten\Bc\Exception\GameIsRunningException;
+use Nighten\Bc\Exception\WrongBullCowsValueException;
 use Nighten\Bc\GameFactory;
 use Nighten\Bc\Service\GameStateDumper;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -50,15 +51,24 @@ class GameCommand extends Command
 
         /** @var QuestionHelper $helper */
         $helper = $this->getHelper('question');
-        $question = new Question('Enter number: ');
+        $question1 = new Question('Enter number: ');
+        $question2 = new Question('Enter bulls and cows: ');
         $requestSection = $output->section();
         $resultSection = $output->section();
         $table = $this->initTable($resultSection);
 
         $game = GameFactory::create();
         if ($this->gameStateDumper->load($game)) {
-            foreach ($game->getState()->getTurns() as $turn) {
-                $table->addRow([$turn->number->asString(), $turn->bulls, $turn->cows]);
+            foreach ($game->getTurns() as $key => $turn) {
+                $table->addRow([
+                    ++$key,
+                    $turn['user']?->number?->asString() ?? '',
+                    $turn['user']?->bulls ?? '',
+                    $turn['user']?->cows ?? '',
+                    $turn['comp']?->number?->asString() ?? '',
+                    $turn['comp']?->bulls ?? '',
+                    $turn['comp']?->cows ?? '',
+                ]);
             }
         } else {
             $game->start();
@@ -67,8 +77,14 @@ class GameCommand extends Command
         $table->render();
 
         $win = false;
+        $userWin = false;
+        $compWin = false;
         while (true) {
-            $number = $helper->ask($input, $requestSection, $question);
+            if ($game->isUserTurn()) {
+                $number = $helper->ask($input, $requestSection, $question1);
+            } else {
+                $number = $helper->ask($input, $requestSection, $question2);
+            }
             if (!(is_string($number) || null === $number)) {
                 throw new Exception('Invalid number. ' . gettype($number) . ' given');
             }
@@ -86,14 +102,57 @@ class GameCommand extends Command
             }
             if (null !== $number) {
                 try {
-                    $turn = $game->turn($number);
-                    $requestSection->writeln('Turn: ' . $number . ' Bulls: ' . $turn->bulls . ' Cows: ' . $turn->cows);
-                    $table->appendRow([$number, $turn->bulls, $turn->cows]);
-                    if ($turn->bulls === 4) {
-                        $win = true;
-                        $this->gameStateDumper->reset();
-                        break;
+                    if ($game->isUserTurn()) {
+                        $turn = $game->userTurn($number);
+                        $requestSection->writeln(
+                            'Turn: ' . $number . ' Bulls: ' . $turn->bulls . ' Cows: ' . $turn->cows
+                        );
+
+                        $compNumber = $game->getCompNumber();
+
+                        $requestSection->writeln(
+                            'Comp Number: ' . $compNumber->asString(),
+                        );
+
+                        if ($turn->bulls === 4) {
+                            $win = true;
+                            $userWin = true;
+                            $this->gameStateDumper->reset();
+                            break;
+                        }
+                    } else {
+                        if (strlen($number) !== 2) {
+                            throw new WrongBullCowsValueException('Expected 2 number');
+                        }
+                        $bulls = (int)$number[0];
+                        $cows = (int)$number[1];
+                        if ($bulls > 4 || $cows > 4 || ($bulls + $cows) > 4) {
+                            throw new WrongBullCowsValueException('Bulls and cows must be less than 4');
+                        }
+                        $requestSection->writeln(
+                            'Bulls: ' . $bulls . ' Cows: ' . $cows
+                        );
+                        $compTurn = $game->getCompNumberAnswer($bulls, $cows);
+
+                        $lastUserTurn = $game->getLastUserTurn();
+
+                        $table->appendRow([
+                            $game->getTurnCount(),
+                            $lastUserTurn?->number->asString() ?? '',
+                            $lastUserTurn?->bulls ?? '',
+                            $lastUserTurn?->cows ?? '',
+                            $compTurn->number->asString(),
+                            $compTurn->bulls,
+                            $compTurn->cows,
+                        ]);
+                        if ($bulls === 4) {
+                            $win = true;
+                            $compWin = true;
+                            $this->gameStateDumper->reset();
+                            break;
+                        }
                     }
+
                     $this->gameStateDumper->dump($game);
                 } catch (GameException $e) {
                     $requestSection->writeln('<error>' . $e->getMessage() . '</error>');
@@ -101,7 +160,13 @@ class GameCommand extends Command
             }
         }
         if ($win) {
-            $output->writeln('<fg=green>WIN</>');
+            if ($userWin) {
+                $output->writeln('<fg=green>You WIN</>');
+            } elseif ($compWin) {
+                $output->writeln('<fg=green>Comp WIN</>');
+            } else {
+                $output->writeln('<fg=green>Somebody WIN</>');
+            }
         }
         return Command::SUCCESS;
     }
@@ -109,7 +174,7 @@ class GameCommand extends Command
     private function initTable(ConsoleSectionOutput $section): Table
     {
         $table = new Table($section);
-        $table->setHeaders(['Number', 'Bulls', 'Cows']);
+        $table->setHeaders(['Turn', 'Your number', 'Bulls', 'Cows', 'Comp number', 'Bulls', 'Cows']);
         return $table;
     }
 }

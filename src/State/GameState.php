@@ -6,10 +6,15 @@ namespace Nighten\Bc\State;
 
 use Nighten\Bc\Dto\Number;
 use Nighten\Bc\Dto\Turn;
+use Nighten\Bc\Exception\AnswerExpectedException;
 use Nighten\Bc\Exception\GameIsNotRunningException;
+use Nighten\Bc\Exception\RequestNumberExpectedException;
 
 class GameState
 {
+    public const string PLAYER_USER = 'user';
+    public const string PLAYER_COMP = 'comp';
+
     private bool $isRunning = false;
 
     private ?Number $number = null;
@@ -17,12 +22,33 @@ class GameState
     /**
      * @var Turn[]
      */
-    private array $turns = [];
+    private array $userTurns = [];
 
-    public function start(Number $number): void
-    {
+    /**
+     * @var Turn[]
+     */
+    private array $compTurns = [];
+
+    private string $player = self::PLAYER_USER;
+
+    /**
+     * @var string[]
+     */
+    private array $list = [];
+
+    private ?Number $compNumber = null;
+
+    /**
+     * @param string[] $list
+     */
+    public function start(
+        Number $number,
+        array $list,
+    ): void {
         $this->isRunning = true;
         $this->number = $number;
+        $this->list = $list;
+        $this->player = self::PLAYER_USER;
     }
 
     public function isRunning(): bool
@@ -46,16 +72,97 @@ class GameState
         return $this->number;
     }
 
-    public function addTurn(Turn $turnResult): void
+    public function addUserTurn(Turn $turnResult): void
     {
-        $this->turns[] = $turnResult;
+        $this->userTurns[] = $turnResult;
+        $this->nextTurn();
     }
 
     /**
      * @return Turn[]
      */
-    public function getTurns(): array
+    public function getUserTurns(): array
     {
-        return $this->turns;
+        return $this->userTurns;
+    }
+
+    public function isUserTurn(): bool
+    {
+        return $this->player === self::PLAYER_USER;
+    }
+
+    public function isCompTurn(): bool
+    {
+        return $this->player === self::PLAYER_COMP;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getList(): array
+    {
+        return $this->list;
+    }
+
+    /**
+     * @param string[] $list
+     */
+    public function setList(array $list): void
+    {
+        $this->list = $list;
+    }
+
+    private function nextTurn(): void
+    {
+        if ($this->isUserTurn()) {
+            $this->player = self::PLAYER_COMP;
+        } else {
+            $this->player = self::PLAYER_USER;
+        }
+    }
+
+    /**
+     * @throws AnswerExpectedException
+     */
+    public function addCompNumber(Number $number): void
+    {
+        if (null !== $this->compNumber) {
+            throw new AnswerExpectedException('Expected answer');
+        }
+        $this->compNumber = $number;
+    }
+
+    /**
+     * @throws RequestNumberExpectedException
+     */
+    public function getCompNumber(): Number
+    {
+        if (null === $this->compNumber) {
+            throw new RequestNumberExpectedException('Request number before get it');
+        }
+        return $this->compNumber;
+    }
+
+    /**
+     * @return Turn[]
+     */
+    public function getCompTurns(): array
+    {
+        return $this->compTurns;
+    }
+
+    /**
+     * @param string[] $list
+     * @throws RequestNumberExpectedException
+     */
+    public function addCompCheckAnswer(array $list, int $bulls, int $cows): void
+    {
+        if (null === $this->compNumber) {
+            throw new RequestNumberExpectedException('Request number before add answer');
+        }
+        $this->list = $list;
+        $this->compTurns[] = new Turn($this->compNumber, $bulls, $cows);
+        $this->compNumber = null;
+        $this->nextTurn();
     }
 }
