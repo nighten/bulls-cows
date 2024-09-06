@@ -6,6 +6,7 @@ namespace Nighten\Bc\State;
 
 use Nighten\Bc\Dto\Number;
 use Nighten\Bc\Dto\Turn;
+use Nighten\Bc\Exception\GameIsNotRunningException;
 
 class GameState
 {
@@ -31,6 +32,17 @@ class GameState
 
     public function getNumber(): ?Number
     {
+        return $this->number;
+    }
+
+    /**
+     * @throws GameIsNotRunningException
+     */
+    public function getNumberStrict(): Number
+    {
+        if (null === $this->number) {
+            throw new GameIsNotRunningException('Game is not running.');
+        }
         return $this->number;
     }
 

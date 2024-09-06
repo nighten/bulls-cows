@@ -61,9 +61,13 @@ class Game
             throw new WrongNumberException($result->message);
         }
         $array = str_split($turnNumber);
+        /**
+         * Guarantee by NumberValidator::validate()
+         * @var array<int<0, 3>, int<0, 9>> $array
+         */
         $array = array_map('intval', $array);
         $turn = $this->numberChecker->check(
-            $this->state->getNumber(),
+            $this->state->getNumberStrict(),
             new Number($array),
         );
         $this->state->addTurn($turn);

@@ -7,12 +7,12 @@ namespace Nighten\Bc\Dto;
 readonly class Number
 {
     /**
-     * @var array{0: int<0,9>, 1: int<0,9>, 2: int<0,9>, 3: int<0,9>}
+     * @var array<int<0, 3>, int<0, 9>>
      */
     private array $number;
 
     /**
-     * @param array{0: int<0,9>, 1: int<0,9>, 2: int<0,9>, 3: int<0,9>} $number
+     * @param array<int<0, 3>, int<0, 9>> $number
      */
     public function __construct(array $number)
     {
@@ -20,7 +20,7 @@ readonly class Number
     }
 
     /**
-     * @return array{0: int<0,9>, 1: int<0,9>, 2: int<0,9>, 3: int<0,9>}
+     * @return array<int<0, 3>, int<0, 9>>
      */
     public function getNumber(): array
     {

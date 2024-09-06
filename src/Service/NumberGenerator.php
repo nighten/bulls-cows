@@ -13,7 +13,7 @@ readonly class NumberGenerator
         $list = [];
         for ($i = 0; $i < 4; $i++) {
             $n = rand(0, 9);
-            while (in_array($n, $list)) {
+            while (in_array($n, $list, true)) {
                 $n = rand(0, 9);
             }
             $list[$i] = $n;

@@ -19,7 +19,7 @@ class NumberChecker
         foreach ($checkedNumberArray as $key => $number) {
             if ($hiddenNumberArray[$key] === $number) {
                 $bulls++;
-            } elseif (in_array($number, $hiddenNumberArray)) {
+            } elseif (in_array($number, $hiddenNumberArray, true)) {
                 $cows++;
             }
         }

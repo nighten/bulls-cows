@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace Nighten\Bc\Cli;
 
+use Exception;
 use Nighten\Bc\Exception\GameException;
 use Nighten\Bc\Exception\GameIsRunningException;
 use Nighten\Bc\Game;
 use Nighten\Bc\GameFactory;
+use Nighten\Bc\State\GameState;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\ConsoleSectionOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\Question;
@@ -25,13 +29,21 @@ class GameCommand extends Command
 {
     /**
      * @throws GameIsRunningException
+     * @throws Exception
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        if (!$output instanceof ConsoleOutputInterface) {
+            throw new Exception(
+                'This command requires a console output instance of ConsoleOutputInterface.'
+            );
+        }
+
         $output->writeln('<info>Starting game Bulls and Cows</info>');
         $output->writeln('<info>For end game type "end"</info>');
         $output->writeln('<info>For start new game type "new"</info>');
 
+        /** @var QuestionHelper $helper */
         $helper = $this->getHelper('question');
         $question = new Question('Enter number: ');
         $requestSection = $output->section();
@@ -52,6 +64,9 @@ class GameCommand extends Command
         $win = false;
         while (true) {
             $number = $helper->ask($input, $requestSection, $question);
+            if (!(is_string($number) || null === $number)) {
+                throw new Exception('Invalid number. ' . gettype($number) . ' given');
+            }
             if ('end' === $number) {
                 break;
             }
@@ -95,9 +110,14 @@ class GameCommand extends Command
     private function loadState(Game $game): bool
     {
         if (file_exists('state.dump')) {
-            $state = unserialize(file_get_contents('state.dump'));
-            $game->loadState($state);
-            return true;
+            $content = file_get_contents('state.dump');
+            if (is_string($content)) {
+                $state = unserialize($content);
+                if ($state instanceof GameState) {
+                    $game->loadState($state);
+                    return true;
+                }
+            }
         }
         return false;
     }
