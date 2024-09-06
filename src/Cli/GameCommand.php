@@ -72,7 +72,7 @@ class GameCommand extends Command
                 ]);
             }
         } else {
-            $game->start(GameType::Together);
+            $game->start(GameType::User);
         }
 
         $table->render();
@@ -81,17 +81,14 @@ class GameCommand extends Command
         $userWin = false;
         $compWin = false;
 
-        if ($game->isCompTurn()) {
-            $compNumber = $game->getCompNumber();
-            $requestSection->writeln(
-                'Comp Number: ' . $compNumber->asString(),
-            );
-        }
-
         while (true) {
             if ($game->isUserTurn()) {
                 $number = $helper->ask($input, $requestSection, $question1);
             } else {
+                $compNumber = $game->getCompNumber();
+                $requestSection->writeln(
+                    'Comp Number: ' . $compNumber->asString(),
+                );
                 $number = $helper->ask($input, $requestSection, $question2);
             }
             if (!(is_string($number) || null === $number)) {
@@ -106,12 +103,6 @@ class GameCommand extends Command
                 $requestSection = $output->section();
                 $requestSection->writeln('<info>Game was restarted</info>');
                 $resultSection = $output->section();
-                if ($game->isCompTurn()) {
-                    $compNumber = $game->getCompNumber();
-                    $requestSection->writeln(
-                        'Comp Number: ' . $compNumber->asString(),
-                    );
-                }
                 $table = $this->initTable($resultSection);
                 continue;
             }
@@ -149,11 +140,6 @@ class GameCommand extends Command
                             $this->gameStateDumper->reset();
                             break;
                         }
-
-                        $compNumber = $game->getCompNumber();
-                        $requestSection->writeln(
-                            'Comp Number: ' . $compNumber->asString(),
-                        );
                     }
 
                     $this->gameStateDumper->dump($game);
