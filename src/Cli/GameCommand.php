@@ -7,9 +7,8 @@ namespace Nighten\Bc\Cli;
 use Exception;
 use Nighten\Bc\Exception\GameException;
 use Nighten\Bc\Exception\GameIsRunningException;
-use Nighten\Bc\Game;
 use Nighten\Bc\GameFactory;
-use Nighten\Bc\State\GameState;
+use Nighten\Bc\Service\GameStateDumper;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\QuestionHelper;
@@ -27,6 +26,12 @@ use Symfony\Component\Console\Question\Question;
 ]
 class GameCommand extends Command
 {
+    public function __construct(
+        private readonly GameStateDumper $gameStateDumper,
+    ) {
+        parent::__construct();
+    }
+
     /**
      * @throws GameIsRunningException
      * @throws Exception
@@ -51,7 +56,7 @@ class GameCommand extends Command
         $table = $this->initTable($resultSection);
 
         $game = GameFactory::create();
-        if ($this->loadState($game)) {
+        if ($this->gameStateDumper->load($game)) {
             foreach ($game->getState()->getTurns() as $turn) {
                 $table->addRow([$turn->number->asString(), $turn->bulls, $turn->cows]);
             }
@@ -71,7 +76,7 @@ class GameCommand extends Command
                 break;
             }
             if ('new' === $number) {
-                $this->resetState();
+                $this->gameStateDumper->reset();
                 $game->restart();
                 $requestSection = $output->section();
                 $requestSection->writeln('<info>Game was restarted</info>');
@@ -86,10 +91,10 @@ class GameCommand extends Command
                     $table->appendRow([$number, $turn->bulls, $turn->cows]);
                     if ($turn->bulls === 4) {
                         $win = true;
-                        $this->resetState();
+                        $this->gameStateDumper->reset();
                         break;
                     }
-                    $this->dumpState($game);
+                    $this->gameStateDumper->dump($game);
                 } catch (GameException $e) {
                     $requestSection->writeln('<error>' . $e->getMessage() . '</error>');
                 }
@@ -99,34 +104,6 @@ class GameCommand extends Command
             $output->writeln('<fg=green>WIN</>');
         }
         return Command::SUCCESS;
-    }
-
-    private function dumpState(Game $game): void
-    {
-        $state = $game->getState();
-        file_put_contents('state.dump', serialize($state));
-    }
-
-    private function loadState(Game $game): bool
-    {
-        if (file_exists('state.dump')) {
-            $content = file_get_contents('state.dump');
-            if (is_string($content)) {
-                $state = unserialize($content);
-                if ($state instanceof GameState) {
-                    $game->loadState($state);
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private function resetState(): void
-    {
-        if (file_exists('state.dump')) {
-            unlink('state.dump');
-        }
     }
 
     private function initTable(ConsoleSectionOutput $section): Table
