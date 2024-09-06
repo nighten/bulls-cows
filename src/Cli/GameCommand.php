@@ -9,6 +9,7 @@ use Nighten\Bc\Enum\GameType;
 use Nighten\Bc\Exception\GameException;
 use Nighten\Bc\Exception\GameIsRunningException;
 use Nighten\Bc\Exception\WrongBullCowsValueException;
+use Nighten\Bc\Game;
 use Nighten\Bc\GameFactory;
 use Nighten\Bc\Service\GameStateDumper;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -28,6 +29,8 @@ use Symfony\Component\Console\Question\Question;
 ]
 class GameCommand extends Command
 {
+    private int $lastPrintedTurn = 0;
+
     public function __construct(
         private readonly GameStateDumper $gameStateDumper,
     ) {
@@ -60,6 +63,7 @@ class GameCommand extends Command
 
         $game = GameFactory::create();
         if ($this->gameStateDumper->load($game)) {
+            $lastKey = 0;
             foreach ($game->getTurns() as $key => $turn) {
                 $table->addRow([
                     ++$key,
@@ -70,9 +74,11 @@ class GameCommand extends Command
                     $turn['comp']?->bulls ?? '',
                     $turn['comp']?->cows ?? '',
                 ]);
+                $lastKey = $key;
             }
+            $this->lastPrintedTurn = $lastKey;
         } else {
-            $game->start(GameType::User);
+            $game->start(GameType::Comp);
         }
 
         $table->render();
@@ -98,6 +104,7 @@ class GameCommand extends Command
                 break;
             }
             if ('new' === $number) {
+                $this->lastPrintedTurn = 0;
                 $this->gameStateDumper->reset();
                 $game->restart();
                 $requestSection = $output->section();
@@ -147,20 +154,7 @@ class GameCommand extends Command
                     $requestSection->writeln('<error>' . $e->getMessage() . '</error>');
                 }
 
-                if ($game->isTurnFinished()) {
-                    $lastUserTurn = $game->getLastUserTurn();
-                    $lastCompTurn = $game->getLastCompTurn();
-
-                    $table->appendRow([
-                        $game->getTurnCount(),
-                        $lastUserTurn?->number->asString() ?? '',
-                        $lastUserTurn?->bulls ?? '',
-                        $lastUserTurn?->cows ?? '',
-                        $lastCompTurn?->number->asString() ?? '',
-                        $lastCompTurn?->bulls ?? '',
-                        $lastCompTurn?->cows ?? '',
-                    ]);
-                }
+                $this->addPrintTurnIfFinished($game, $table);
             }
         }
         if ($win) {
@@ -180,5 +174,26 @@ class GameCommand extends Command
         $table = new Table($section);
         $table->setHeaders(['Turn', 'Your number', 'Bulls', 'Cows', 'Comp number', 'Bulls', 'Cows']);
         return $table;
+    }
+
+    private function addPrintTurnIfFinished(Game $game, Table $table): void
+    {
+        if (!$game->getLastTurn()) {
+            return;
+        }
+        $lastTurnCount = $game->getTurnCount();
+        if ($lastTurnCount > $this->lastPrintedTurn) {
+            $lastTurn = $game->getLastTurn();
+            $table->appendRow([
+                $game->getTurnCount(),
+                $lastTurn['user']?->number->asString() ?? '',
+                $lastTurn['user']?->bulls ?? '',
+                $lastTurn['user']?->cows ?? '',
+                $lastTurn['comp']?->number->asString() ?? '',
+                $lastTurn['comp']?->bulls ?? '',
+                $lastTurn['comp']?->cows ?? '',
+            ]);
+            $this->lastPrintedTurn = $lastTurnCount;
+        }
     }
 }

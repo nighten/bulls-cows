@@ -157,6 +157,18 @@ class Game
         return $turns[array_key_last($turns)];
     }
 
+    /**
+     * @return array{"user": Turn|null, "comp": Turn|null}|null
+     */
+    public function getLastTurn(): ?array
+    {
+        $turns = $this->getTurns();
+        if (count($turns) === 0) {
+            return null;
+        }
+        return $turns[array_key_last($turns)];
+    }
+
     public function getState(): GameState
     {
         return $this->state;
