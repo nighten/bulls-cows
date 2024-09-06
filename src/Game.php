@@ -7,8 +7,10 @@ namespace Nighten\Bc;
 use Nighten\Bc\Contract\CompStrategy;
 use Nighten\Bc\Dto\Number;
 use Nighten\Bc\Dto\Turn;
+use Nighten\Bc\Enum\GameType;
 use Nighten\Bc\Exception\GameIsNotRunningException;
 use Nighten\Bc\Exception\GameIsRunningException;
+use Nighten\Bc\Exception\RequestNumberExpectedException;
 use Nighten\Bc\Exception\TurnNotFoundException;
 use Nighten\Bc\Exception\WrongNumberException;
 use Nighten\Bc\Exception\WrongTurnException;
@@ -35,20 +37,16 @@ class Game
     /**
      * @throws GameIsRunningException
      */
-    public function start(): void
+    public function start(GameType $gameType): void
     {
         if ($this->state->isRunning()) {
             throw new GameIsRunningException('GameRunning');
         }
         $this->state->start(
             $this->numberGenerator->generateNumber(),
+            $gameType,
             $this->sourceListProvider->getSourceList(),
         );
-
-        //$n = $this->comp->getNumber($this->state);
-        //$this->comp->answer($this->state, 1, 2);
-
-        //$a = 1;
     }
 
     /**
@@ -56,8 +54,9 @@ class Game
      */
     public function restart(): void
     {
+        $gameType = $this->state->getGameType();
         $this->state = new GameState();
-        $this->start();
+        $this->start($gameType);
     }
 
     /**
@@ -91,8 +90,14 @@ class Game
         return $turn;
     }
 
+    /**
+     * @throws RequestNumberExpectedException
+     */
     public function getCompNumber(): Number
     {
+        if ($this->state->hasCompNumber()) {
+            return $this->state->getCompNumber();
+        }
         return $this->comp->getNumber($this->state);
     }
 
@@ -134,14 +139,20 @@ class Game
         return $result;
     }
 
-    /**
-     * @throws TurnNotFoundException
-     */
     public function getLastUserTurn(): ?Turn
     {
         $turns = $this->state->getUserTurns();
         if (count($turns) === 0) {
-            throw new TurnNotFoundException('Last user turn not found');
+            return null;
+        }
+        return $turns[array_key_last($turns)];
+    }
+
+    public function getLastCompTurn(): ?Turn
+    {
+        $turns = $this->state->getCompTurns();
+        if (count($turns) === 0) {
+            return null;
         }
         return $turns[array_key_last($turns)];
     }
@@ -159,6 +170,27 @@ class Game
     public function isUserTurn(): bool
     {
         return $this->state->isUserTurn();
+    }
+
+    public function isCompTurn(): bool
+    {
+        return $this->state->isCompTurn();
+    }
+
+    public function isTurnFinished(): bool
+    {
+        //Возможно лучше перенести в state
+        if ($this->state->isGameTogether()) {
+            $turns = $this->getTurns();
+            if (count($turns) === 0) {
+                return true;
+            }
+            $turn = $turns[array_key_last($turns)];
+            if ($turn['comp'] === null || $turn['user'] === null) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public function getTurnCount(): int

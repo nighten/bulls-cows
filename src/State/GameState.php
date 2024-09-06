@@ -6,6 +6,7 @@ namespace Nighten\Bc\State;
 
 use Nighten\Bc\Dto\Number;
 use Nighten\Bc\Dto\Turn;
+use Nighten\Bc\Enum\GameType;
 use Nighten\Bc\Exception\AnswerExpectedException;
 use Nighten\Bc\Exception\GameIsNotRunningException;
 use Nighten\Bc\Exception\RequestNumberExpectedException;
@@ -16,6 +17,7 @@ class GameState
     public const string PLAYER_COMP = 'comp';
 
     private bool $isRunning = false;
+    private GameType $gameType;
 
     private ?Number $number = null;
 
@@ -43,12 +45,18 @@ class GameState
      */
     public function start(
         Number $number,
+        GameType $gameType,
         array $list,
     ): void {
         $this->isRunning = true;
+        $this->gameType = $gameType;
         $this->number = $number;
         $this->list = $list;
-        $this->player = self::PLAYER_USER;
+        if ($gameType === GameType::Comp) {
+            $this->player = self::PLAYER_COMP;
+        } else {
+            $this->player = self::PLAYER_USER;
+        }
     }
 
     public function isRunning(): bool
@@ -59,6 +67,16 @@ class GameState
     public function getNumber(): ?Number
     {
         return $this->number;
+    }
+
+    public function getGameType(): GameType
+    {
+        return $this->gameType;
+    }
+
+    public function isGameTogether(): bool
+    {
+        return $this->gameType === GameType::Together;
     }
 
     /**
@@ -114,11 +132,19 @@ class GameState
 
     private function nextTurn(): void
     {
+        if ($this->gameType !== GameType::Together) {
+            return;
+        }
         if ($this->isUserTurn()) {
             $this->player = self::PLAYER_COMP;
         } else {
             $this->player = self::PLAYER_USER;
         }
+    }
+
+    public function hasCompNumber(): bool
+    {
+        return $this->compNumber !== null;
     }
 
     /**

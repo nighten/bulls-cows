@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nighten\Bc\Cli;
 
 use Exception;
+use Nighten\Bc\Enum\GameType;
 use Nighten\Bc\Exception\GameException;
 use Nighten\Bc\Exception\GameIsRunningException;
 use Nighten\Bc\Exception\WrongBullCowsValueException;
@@ -71,7 +72,7 @@ class GameCommand extends Command
                 ]);
             }
         } else {
-            $game->start();
+            $game->start(GameType::Together);
         }
 
         $table->render();
@@ -79,6 +80,14 @@ class GameCommand extends Command
         $win = false;
         $userWin = false;
         $compWin = false;
+
+        if ($game->isCompTurn()) {
+            $compNumber = $game->getCompNumber();
+            $requestSection->writeln(
+                'Comp Number: ' . $compNumber->asString(),
+            );
+        }
+
         while (true) {
             if ($game->isUserTurn()) {
                 $number = $helper->ask($input, $requestSection, $question1);
@@ -97,6 +106,12 @@ class GameCommand extends Command
                 $requestSection = $output->section();
                 $requestSection->writeln('<info>Game was restarted</info>');
                 $resultSection = $output->section();
+                if ($game->isCompTurn()) {
+                    $compNumber = $game->getCompNumber();
+                    $requestSection->writeln(
+                        'Comp Number: ' . $compNumber->asString(),
+                    );
+                }
                 $table = $this->initTable($resultSection);
                 continue;
             }
@@ -106,12 +121,6 @@ class GameCommand extends Command
                         $turn = $game->userTurn($number);
                         $requestSection->writeln(
                             'Turn: ' . $number . ' Bulls: ' . $turn->bulls . ' Cows: ' . $turn->cows
-                        );
-
-                        $compNumber = $game->getCompNumber();
-
-                        $requestSection->writeln(
-                            'Comp Number: ' . $compNumber->asString(),
                         );
 
                         if ($turn->bulls === 4) {
@@ -132,30 +141,39 @@ class GameCommand extends Command
                         $requestSection->writeln(
                             'Bulls: ' . $bulls . ' Cows: ' . $cows
                         );
-                        $compTurn = $game->getCompNumberAnswer($bulls, $cows);
+                        $game->getCompNumberAnswer($bulls, $cows);
 
-                        $lastUserTurn = $game->getLastUserTurn();
-
-                        $table->appendRow([
-                            $game->getTurnCount(),
-                            $lastUserTurn?->number->asString() ?? '',
-                            $lastUserTurn?->bulls ?? '',
-                            $lastUserTurn?->cows ?? '',
-                            $compTurn->number->asString(),
-                            $compTurn->bulls,
-                            $compTurn->cows,
-                        ]);
                         if ($bulls === 4) {
                             $win = true;
                             $compWin = true;
                             $this->gameStateDumper->reset();
                             break;
                         }
+
+                        $compNumber = $game->getCompNumber();
+                        $requestSection->writeln(
+                            'Comp Number: ' . $compNumber->asString(),
+                        );
                     }
 
                     $this->gameStateDumper->dump($game);
                 } catch (GameException $e) {
                     $requestSection->writeln('<error>' . $e->getMessage() . '</error>');
+                }
+
+                if ($game->isTurnFinished()) {
+                    $lastUserTurn = $game->getLastUserTurn();
+                    $lastCompTurn = $game->getLastCompTurn();
+
+                    $table->appendRow([
+                        $game->getTurnCount(),
+                        $lastUserTurn?->number->asString() ?? '',
+                        $lastUserTurn?->bulls ?? '',
+                        $lastUserTurn?->cows ?? '',
+                        $lastCompTurn?->number->asString() ?? '',
+                        $lastCompTurn?->bulls ?? '',
+                        $lastCompTurn?->cows ?? '',
+                    ]);
                 }
             }
         }
